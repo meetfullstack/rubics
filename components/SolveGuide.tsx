@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CubeApi } from "@/components/RubiksCube";
 import CornerButton from "@/components/CornerButton";
+import { useDelayedTrue } from "@/lib/useDelayedTrue";
 import {
   COLORS,
   COLOR_HEX,
@@ -30,12 +31,19 @@ import type { SolverResponse } from "@/lib/solver.worker";
 // needed once the user reaches the guide phase).
 const RubiksCube = dynamic(() => import("@/components/RubiksCube"), {
   ssr: false,
-  loading: () => (
-    <div className="card cube-stage cube-skeleton-stage" role="status">
+  loading: () => <GuideCubeSkeleton />,
+});
+
+function GuideCubeSkeleton() {
+  // Only shows the pulsing placeholder once loading has taken a moment —
+  // on a fast connection this resolves before the delay, so nothing flashes.
+  const show = useDelayedTrue();
+  return (
+    <div className={`card cube-stage cube-skeleton-stage${show ? " is-loading" : ""}`} role="status">
       <span className="sr-only">Loading 3D cube…</span>
     </div>
-  ),
-});
+  );
+}
 
 type Phase = "input" | "solving" | "guide";
 
