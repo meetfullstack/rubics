@@ -134,8 +134,6 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Neutral keeps sticker hues saturated while taming blown-out highlights.
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.domElement.className = "cube-canvas";
@@ -150,26 +148,10 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
     scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7aa8, 0.9));
     const key = new THREE.DirectionalLight(0xffffff, 2.4);
     key.position.set(4, 9, 6);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 25 });
-    key.shadow.camera.updateProjectionMatrix();
-    key.shadow.bias = -0.0005;
-    key.shadow.normalBias = 0.02;
     scene.add(key);
     const rim = new THREE.PointLight(0xa855f7, 30, 20);
     rim.position.set(-4, -2, -4);
     scene.add(rim);
-
-    // An invisible floor that only shows the cube's soft shadow.
-    const floorGeometry = new THREE.PlaneGeometry(16, 16);
-    const floorMaterial = new THREE.ShadowMaterial({ opacity: 0.28 });
-    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -2.1;
-    floor.receiveShadow = true;
-    // The home page hero cube floats without a floor shadow.
-    if (mode !== "hero") scene.add(floor);
 
     const root = new THREE.Group();
     scene.add(root);
@@ -195,8 +177,6 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
       for (let y = -1; y <= 1; y++)
         for (let z = -1; z <= 1; z++) {
           const mesh = new THREE.Mesh(geometry, body);
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
           mesh.position.set(x, y, z);
           mesh.userData.home = mesh.position.clone();
           const outer = [x === 1, x === -1, y === 1, y === -1, z === 1, z === -1];
@@ -205,7 +185,6 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
             const sticker = new THREE.Mesh(stickerGeometry, stickerMats[i]);
             sticker.quaternion.setFromUnitVectors(Z_AXIS, NORMALS[i]);
             sticker.position.copy(NORMALS[i]).multiplyScalar(0.483);
-            sticker.receiveShadow = true;
             sticker.userData.normal = NORMALS[i];
             mesh.add(sticker);
           });
@@ -547,8 +526,6 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
       body.dispose();
       stickerGeometry.dispose();
       stickerMats.forEach((m) => m.dispose());
-      floorGeometry.dispose();
-      floorMaterial.dispose();
       envMap.dispose();
       pmrem.dispose();
       renderer.dispose();
