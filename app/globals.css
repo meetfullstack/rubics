@@ -571,7 +571,12 @@ a[aria-current="page"] .nav-link-text {
 }
 
 /* "Solve it." — hovering snaps each letter through a quick twist, like the
-   last turn that solves it. */
+   last turn that solves it. Solid accent color, not the site's usual
+   .accent-text gradient-clip — see the comment in HeroHeadline.tsx for why. */
+.hero-solve {
+  color: var(--accent-text);
+}
+
 .hero-solve-letter {
   display: inline-block;
 }
