@@ -33,7 +33,13 @@ self.onmessage = (e: MessageEvent<SolverRequest>) => {
       reply({ type: "ready" });
     }
     if (msg.type === "solve") {
-      reply({ type: "solution", moves: Cube.fromString(msg.facelets).solve() });
+      const cube = Cube.fromString(msg.facelets);
+      // cube.js's solve() doesn't special-case an already-solved cube: it
+      // returns a non-empty sequence of moves that net to a no-op (verified
+      // against the vendored solver directly) instead of "". Check first so
+      // "no moves needed" is reported accurately instead of walking the
+      // user through a pointless multi-step "solution".
+      reply({ type: "solution", moves: cube.isSolved() ? "" : cube.solve() });
     }
   } catch (err) {
     reply({ type: "error", message: err instanceof Error ? err.message : String(err) });
