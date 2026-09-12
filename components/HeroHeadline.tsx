@@ -15,12 +15,12 @@ function SplitWord({ text, wordClass, letterClass }: { text: string; wordClass: 
 }
 
 /**
- * The hero's two-line headline. Each word gets its own hover animation,
- * matching what it says: "Twist it." snaps into a quick twist, "Solve it."
- * has its letters click down into place like they've just settled/solved.
- * Letters are aria-hidden and split purely for the per-letter CSS animation
- * delay (see .hero-twist/.hero-solve in globals.css) — a plain-text
- * sr-only copy underneath is what screen readers and copy/paste see.
+ * The hero's two-line headline. Each word gets its own hover animation:
+ * "Twist it." flips each letter end over end, "Solve it." snaps each
+ * letter through a quick twist. Letters are aria-hidden and split purely
+ * for the per-letter CSS animation delay (see .hero-twist/.hero-solve in
+ * globals.css) — a plain-text sr-only copy underneath is what screen
+ * readers and copy/paste see.
  */
 export default function HeroHeadline() {
   return (
