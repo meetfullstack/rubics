@@ -563,8 +563,11 @@ a[aria-current="page"] .nav-link-text {
 .cube-stage {
   position: relative;
   aspect-ratio: 1;
-  max-height: calc(100vh - 220px);
-  width: 100%;
+  /* min() with an explicit width (not max-height) keeps the box square: a
+     max-height alone would cap height without shrinking width to match,
+     stretching the stage into a short, wide rectangle on landscape phones. */
+  width: min(100%, calc(100vh - 220px));
+  margin-inline: auto;
   overflow: hidden;
 }
 
@@ -609,6 +612,15 @@ a[aria-current="page"] .nav-link-text {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem 1rem;
+}
+
+/* Only below 960px: there .cube-panel spans the full page width (cube-layout
+   stacks to one column), with room for a third column. At 960px+ the panel
+   is a fixed 340px sidebar — too narrow for 3 columns, which would overlap. */
+@media (min-width: 640px) and (max-width: 959px) {
+  .side-pad {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .side-row {
