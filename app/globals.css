@@ -818,6 +818,10 @@ a[aria-current="page"] .nav-link-text {
   color: var(--text-secondary);
 }
 
+.swatch--full .swatch-count {
+  color: var(--accent-text);
+}
+
 /* The unfolded cube: a 12×9 grid of sticker cells. */
 .net {
   display: grid;
