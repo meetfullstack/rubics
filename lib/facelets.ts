@@ -8,13 +8,14 @@ export type Facelets = (Color | null)[];
 
 export const COLORS: Color[] = ["U", "R", "F", "D", "L", "B"];
 
+// Keep in sync with STICKERS in components/RubiksCube.tsx.
 export const COLOR_HEX: Record<Color, string> = {
-  U: "#ffffff",
-  R: "#b71234",
-  F: "#009b48",
-  D: "#ffd500",
-  L: "#ff5800",
-  B: "#0046ad",
+  U: "#f8f8f4",
+  R: "#e8212e",
+  F: "#00b84a",
+  D: "#ffdc00",
+  L: "#ff7a00",
+  B: "#1463ff",
 };
 
 export const COLOR_NAME: Record<Color, string> = {

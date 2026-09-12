@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import CornerButton from "@/components/CornerButton";
 import { FACES, type Face, type Move } from "@/lib/moves";
 
@@ -49,9 +51,9 @@ function turnLabel(t: Turn) {
   return `${face}${t.quarters === cwSign(t.layer) ? "" : "′"}`;
 }
 
-// Western scheme, white up / green front. Order matches BoxGeometry's
-// material groups: +x -x +y -y +z -z.
-const STICKERS = [0xb71234, 0xff5800, 0xffffff, 0xffd500, 0x009b48, 0x0046ad];
+// Western scheme, white up / green front, in NORMALS order: +x -x +y -y +z -z.
+// Keep in sync with COLOR_HEX in lib/facelets.ts.
+const STICKERS = [0xe8212e, 0xff7a00, 0xf8f8f4, 0xffdc00, 0x00b84a, 0x1463ff];
 const NORMALS = [
   new THREE.Vector3(1, 0, 0),
   new THREE.Vector3(-1, 0, 0),
@@ -60,6 +62,32 @@ const NORMALS = [
   new THREE.Vector3(0, 0, 1),
   new THREE.Vector3(0, 0, -1),
 ];
+
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+function roundedSquare(size: number, r: number) {
+  const h = size / 2;
+  const s = new THREE.Shape();
+  s.moveTo(-h + r, -h);
+  s.lineTo(h - r, -h);
+  s.quadraticCurveTo(h, -h, h, -h + r);
+  s.lineTo(h, h - r);
+  s.quadraticCurveTo(h, h, h - r, h);
+  s.lineTo(-h + r, h);
+  s.quadraticCurveTo(-h, h, -h, h - r);
+  s.lineTo(-h, -h + r);
+  s.quadraticCurveTo(-h, -h, -h + r, -h);
+  return s;
+}
+
+/** Snaps a vector to its strongest axis, e.g. (0.2, -0.9, 0.1) → (0, -1, 0). */
+function dominantAxis(v: THREE.Vector3) {
+  const abs = [Math.abs(v.x), Math.abs(v.y), Math.abs(v.z)];
+  const i = abs.indexOf(Math.max(...abs));
+  const out = new THREE.Vector3();
+  out.setComponent(i, Math.sign(v.getComponent(i)));
+  return out;
+}
 
 const QUARTER = Math.PI / 2;
 const snap = (v: number) => Math.round(v / QUARTER) * QUARTER;
@@ -106,38 +134,81 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Neutral keeps sticker hues saturated while taming blown-out highlights.
+    renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.domElement.className = "cube-canvas";
     mount.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-    const key = new THREE.DirectionalLight(0xffffff, 1.8);
-    key.position.set(5, 8, 6);
+    // Soft studio reflections so the stickers read as glossy plastic.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
+    scene.environmentIntensity = 0.9;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7aa8, 0.9));
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    key.position.set(4, 9, 6);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 25 });
+    key.shadow.camera.updateProjectionMatrix();
+    key.shadow.bias = -0.0005;
+    key.shadow.normalBias = 0.02;
     scene.add(key);
-    const rim = new THREE.PointLight(0xa855f7, 25, 20);
+    const rim = new THREE.PointLight(0xa855f7, 30, 20);
     rim.position.set(-4, -2, -4);
     scene.add(rim);
+
+    // An invisible floor that only shows the cube's soft shadow.
+    const floorGeometry = new THREE.PlaneGeometry(16, 16);
+    const floorMaterial = new THREE.ShadowMaterial({ opacity: 0.28 });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -2.1;
+    floor.receiveShadow = true;
+    // The home page hero cube floats without a floor shadow.
+    if (mode !== "hero") scene.add(floor);
 
     const root = new THREE.Group();
     scene.add(root);
 
     // ── Cubies ──────────────────────────────────────────────────
-    const geometry = new THREE.BoxGeometry(0.94, 0.94, 0.94);
-    const body = new THREE.MeshStandardMaterial({ color: 0x121216, roughness: 0.5 });
+    // A rounded black body per cubie, with rounded glossy stickers on the
+    // outward faces (each sticker remembers its local normal).
+    const geometry = new RoundedBoxGeometry(0.96, 0.96, 0.96, 3, 0.1);
+    const body = new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.45, metalness: 0.1 });
+    const stickerGeometry = new THREE.ShapeGeometry(roundedSquare(0.8, 0.13), 6);
     const stickerMats = STICKERS.map(
-      (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.35 }),
+      (color) =>
+        new THREE.MeshPhysicalMaterial({
+          color,
+          roughness: 0.22,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.15,
+        }),
     );
 
     const cubies: THREE.Mesh[] = [];
     for (let x = -1; x <= 1; x++)
       for (let y = -1; y <= 1; y++)
         for (let z = -1; z <= 1; z++) {
-          const outer = [x === 1, x === -1, y === 1, y === -1, z === 1, z === -1];
-          const mesh = new THREE.Mesh(
-            geometry,
-            outer.map((isOuter, i) => (isOuter ? stickerMats[i] : body)),
-          );
+          const mesh = new THREE.Mesh(geometry, body);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
           mesh.position.set(x, y, z);
           mesh.userData.home = mesh.position.clone();
+          const outer = [x === 1, x === -1, y === 1, y === -1, z === 1, z === -1];
+          outer.forEach((isOuter, i) => {
+            if (!isOuter) return;
+            const sticker = new THREE.Mesh(stickerGeometry, stickerMats[i]);
+            sticker.quaternion.setFromUnitVectors(Z_AXIS, NORMALS[i]);
+            sticker.position.copy(NORMALS[i]).multiplyScalar(0.483);
+            sticker.receiveShadow = true;
+            sticker.userData.normal = NORMALS[i];
+            mesh.add(sticker);
+          });
           root.add(mesh);
           cubies.push(mesh);
         }
@@ -175,14 +246,14 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
       const seen = new Map<string, THREE.Material>();
       const n = new THREE.Vector3();
       for (const c of cubies) {
-        const mats = c.material as THREE.Material[];
-        for (let i = 0; i < 6; i++) {
-          if (mats[i] === body) continue;
-          n.copy(NORMALS[i]).applyQuaternion(c.quaternion).round();
+        for (const child of c.children) {
+          const sticker = child as THREE.Mesh;
+          const mat = sticker.material as THREE.Material;
+          n.copy(sticker.userData.normal as THREE.Vector3).applyQuaternion(c.quaternion).round();
           const k = `${n.x},${n.y},${n.z}`;
           const prev = seen.get(k);
-          if (prev && prev !== mats[i]) return false;
-          seen.set(k, mats[i]);
+          if (prev && prev !== mat) return false;
+          seen.set(k, mat);
         }
       }
       return true;
@@ -350,16 +421,20 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
         -((e.clientY - rect.top) / rect.height) * 2 + 1,
       );
       raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(cubies, false)[0];
+      const hit = raycaster.intersectObjects(cubies, true)[0];
       if (!hit?.face) return; // empty space: let OrbitControls rotate the view
-      const q = hit.object.getWorldQuaternion(new THREE.Quaternion());
+      // Hits land on a sticker or on the rounded body between stickers.
+      const stickerNormal = hit.object.userData.normal as THREE.Vector3 | undefined;
+      const cubie = stickerNormal ? hit.object.parent! : hit.object;
+      const local = (stickerNormal ?? hit.face.normal).clone();
+      const worldNormal = local.applyQuaternion(cubie.getWorldQuaternion(new THREE.Quaternion()));
       drag = {
         id: e.pointerId,
         x: e.clientX,
         y: e.clientY,
-        normal: hit.face.normal.clone().applyQuaternion(q).round(),
+        normal: dominantAxis(worldNormal),
         point: hit.point.clone(),
-        cubie: hit.object,
+        cubie,
       };
       // Runs before OrbitControls' own listener (capture), so it ignores this press.
       controls.enabled = false;
@@ -465,7 +540,12 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
       controls.dispose();
       geometry.dispose();
       body.dispose();
+      stickerGeometry.dispose();
       stickerMats.forEach((m) => m.dispose());
+      floorGeometry.dispose();
+      floorMaterial.dispose();
+      envMap.dispose();
+      pmrem.dispose();
       renderer.dispose();
       // dispose() alone keeps the WebGL context alive. Browsers cap live
       // contexts (~16) and silently kill the oldest — which froze the cube
