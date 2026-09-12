@@ -1,6 +1,6 @@
 import Link from "next/link";
 import CornerButton from "@/components/CornerButton";
-import RubiksCube from "@/components/RubiksCube";
+import HeroCube from "@/components/HeroCube";
 
 const features = [
   {
@@ -43,7 +43,7 @@ export default function Home() {
             </div>
           </div>
           <div className="hero-cube">
-            <RubiksCube mode="hero" />
+            <HeroCube />
           </div>
         </div>
       </section>

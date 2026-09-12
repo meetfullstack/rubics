@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import RubiksCube from "@/components/RubiksCube";
+import PlayCube from "@/components/PlayCube";
 
 export const metadata: Metadata = {
   title: "Play",
@@ -23,7 +23,7 @@ export default function PlayPage() {
             watch it rewind.
           </p>
         </header>
-        <RubiksCube />
+        <PlayCube />
       </div>
     </section>
   );
