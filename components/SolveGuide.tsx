@@ -72,6 +72,8 @@ export default function SolveGuide() {
   const [brush, setBrush] = useState<Color>("U");
   const [phase, setPhase] = useState<Phase>("input");
   const [error, setError] = useState<string | null>(null);
+  // Good news, not a mistake — shown like .notice--info rather than an alert.
+  const [info, setInfo] = useState<string | null>(null);
   const [centerHint, setCenterHint] = useState(false);
   const [solverReady, setSolverReady] = useState(false);
   const [solution, setSolution] = useState<Move[]>([]);
@@ -94,11 +96,13 @@ export default function SolveGuide() {
       } else if (msg.type === "random") {
         setFacelets(msg.facelets.split("") as Color[]);
         setError(null);
+        setInfo(null);
       } else if (msg.type === "solution") {
         const moves = parseMoves(msg.moves);
         if (!moves.length) {
           setPhase("input");
-          setError("That cube is already solved. Nothing to do!");
+          setError(null);
+          setInfo("😄 It's already solved! Nothing to do here.");
           return;
         }
         setSolution(moves);
@@ -106,8 +110,16 @@ export default function SolveGuide() {
         setPhase("guide");
       } else {
         setPhase("input");
+        setInfo(null);
         setError("The solver couldn't handle that cube. Double-check your colors and try again.");
       }
+    };
+    // A worker that throws instead of replying would otherwise leave the UI
+    // stuck on "Solving…" forever with no way out.
+    worker.onerror = () => {
+      setPhase("input");
+      setInfo(null);
+      setError("Something went wrong solving that cube. Please try again.");
     };
     worker.postMessage({ type: "init" });
     workerRef.current = worker;
@@ -150,6 +162,8 @@ export default function SolveGuide() {
     }
     setCenterHint(false);
 
+    setInfo(null);
+
     if (facelets[i] === brush) {
       // Clicking a sticker that already has the selected color clears it.
       const copy = [...facelets];
@@ -179,6 +193,7 @@ export default function SolveGuide() {
   const solve = () => {
     const problem = validateFacelets(facelets);
     setError(problem);
+    setInfo(null);
     if (problem) return;
     setPhase("solving");
     workerRef.current?.postMessage({ type: "solve", facelets: facelets.join("") });
@@ -354,6 +369,12 @@ export default function SolveGuide() {
           </p>
         )}
 
+        {info && (
+          <p className="notice notice--info" role="status">
+            {info}
+          </p>
+        )}
+
         {error && (
           <p className="notice" role="alert">
             {error}
@@ -367,6 +388,9 @@ export default function SolveGuide() {
           <CornerButton
             variant="secondary"
             onClick={() => workerRef.current?.postMessage({ type: "random" })}
+            // Changing the cube out from under a pending solve would apply
+            // its result to whatever's on screen by the time it replies.
+            disabled={phase === "solving"}
           >
             Try an example
           </CornerButton>
@@ -375,7 +399,9 @@ export default function SolveGuide() {
             onClick={() => {
               setFacelets(emptyFacelets());
               setError(null);
+              setInfo(null);
             }}
+            disabled={phase === "solving"}
           >
             Clear
           </CornerButton>
