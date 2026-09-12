@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 const CUBE_SIZE_MIN = 10;
 const CUBE_SIZE_RANGE = 14;
 const AREA_PER_CUBE = 5500; // px² of canvas per twinkling cube — controls density
+const GLOW_RADIUS = 170; // px around the pointer that brightens cubes
+const GLOW_PEAK = 0.6; // extra alpha added at the pointer's exact center
 
 // Isometric cube palette: [top, left, right] face shades, light→dark, per theme.
 const DARK_SHADES: [string, string, string][] = [
@@ -70,7 +72,8 @@ function drawCube(
  * A field of tiny cubes that twinkle in place — like a star field, but each
  * "star" is a little isometric cube. Masked to a vignette (see .cube-vignette
  * in globals.css) so it frames the hero's edges/corners and fades away
- * around the headline and 3D cube in the middle.
+ * around the headline and 3D cube in the middle. Cubes near the pointer glow
+ * brighter, on top of their own ambient twinkle.
  */
 export default function CubeVignette() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -86,6 +89,8 @@ export default function CubeVignette() {
     let cubes: Cube[] = [];
     let raf: number;
     let lastDark = document.documentElement.classList.contains("dark");
+    // Miles off-canvas so nothing glows until the pointer actually enters.
+    const pointer = { x: -9999, y: -9999 };
 
     function makeCubes(dark: boolean) {
       const shades = dark ? DARK_SHADES : LIGHT_SHADES;
@@ -109,8 +114,19 @@ export default function CubeVignette() {
         // Rests at near-invisible between twinkles, rather than oscillating
         // symmetrically dim→bright→dim — reads as an occasional glint.
         const wave = Math.max(0, Math.sin(now * c.rate + c.phase));
-        const alpha = (wave * wave * c.peak).toFixed(3);
-        if (Number(alpha) > 0.01) drawCube(ctx!, c.x, c.y, c.size, Number(alpha), c.shade);
+        let alpha = wave * wave * c.peak;
+
+        const dist = Math.hypot(c.x - pointer.x, c.y - pointer.y);
+        const proximity = Math.max(0, 1 - dist / GLOW_RADIUS);
+        if (proximity > 0) alpha = Math.min(1, alpha + proximity * proximity * GLOW_PEAK);
+
+        if (alpha <= 0.01) continue;
+        if (proximity > 0.12) {
+          ctx!.shadowColor = "rgba(168,85,247,0.9)";
+          ctx!.shadowBlur = 16 * proximity;
+        }
+        drawCube(ctx!, c.x, c.y, c.size, Number(alpha.toFixed(3)), c.shade);
+        if (proximity > 0.12) ctx!.shadowBlur = 0;
       }
     }
 
@@ -126,8 +142,31 @@ export default function CubeVignette() {
     syncSize();
     window.addEventListener("resize", syncSize);
 
+    // The canvas itself is pointer-events:none (so it never blocks the
+    // hero's real content), so listen on its parent — the .hero section —
+    // and translate to canvas-local coordinates via its own bounding rect.
+    const host = canvas.parentElement;
+    function onPointerMove(e: PointerEvent) {
+      const rect = canvas!.getBoundingClientRect();
+      pointer.x = e.clientX - rect.left;
+      pointer.y = e.clientY - rect.top;
+      // No render loop under reduced motion, so redraw on move directly.
+      if (reduceMotion) render(performance.now(), document.documentElement.classList.contains("dark"));
+    }
+    function onPointerLeave() {
+      pointer.x = -9999;
+      pointer.y = -9999;
+      if (reduceMotion) render(performance.now(), document.documentElement.classList.contains("dark"));
+    }
+    host?.addEventListener("pointermove", onPointerMove);
+    host?.addEventListener("pointerleave", onPointerLeave);
+
     if (reduceMotion) {
-      return () => window.removeEventListener("resize", syncSize);
+      return () => {
+        window.removeEventListener("resize", syncSize);
+        host?.removeEventListener("pointermove", onPointerMove);
+        host?.removeEventListener("pointerleave", onPointerLeave);
+      };
     }
 
     function tick(now: number) {
@@ -146,6 +185,8 @@ export default function CubeVignette() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", syncSize);
+      host?.removeEventListener("pointermove", onPointerMove);
+      host?.removeEventListener("pointerleave", onPointerLeave);
     };
   }, []);
 

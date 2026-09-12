@@ -137,6 +137,9 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
     // Neutral keeps sticker hues saturated while taming blown-out highlights.
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.domElement.className = "cube-canvas";
+    // Starts invisible and fades in once mounted (below), so swapping in from
+    // the loading skeleton reveals smoothly instead of popping in abruptly.
+    if (!reduceMotion) renderer.domElement.style.opacity = "0";
     mount.appendChild(renderer.domElement);
 
     // Soft studio reflections so the stickers read as glossy plastic.
@@ -517,6 +520,16 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
+
+    if (!reduceMotion) {
+      // One frame late, so the browser has actually painted the opacity:0
+      // canvas first — otherwise the transition can get collapsed into the
+      // same paint and skip straight to opacity:1.
+      requestAnimationFrame(() => {
+        renderer.domElement.style.transition = "opacity 450ms ease";
+        renderer.domElement.style.opacity = "1";
+      });
+    }
 
     return () => {
       cancelAnimationFrame(raf);
