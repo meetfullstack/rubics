@@ -131,7 +131,7 @@ export default function CubeVignette() {
           edge,
           size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
           shade: shades[Math.floor(Math.random() * shades.length)],
-          peak: (0.45 + Math.random() * 0.5) * 0.75, // 25% dimmer peak brightness
+          peak: (0.45 + Math.random() * 0.5) * 0.75 * 0.8, // 25% dimmer, then another 20% dimmer
           phase: Math.random() * Math.PI * 2,
           // Full twinkle cycles every ~4-8s — was 1.4-3s, too fast/frantic.
           rate: (Math.PI * 2) / (4000 + Math.random() * 4000),
