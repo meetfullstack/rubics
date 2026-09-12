@@ -4,14 +4,14 @@ import { useEffect, useRef } from "react";
 
 const CUBE_SIZE_MIN = 10;
 const CUBE_SIZE_RANGE = 14;
-const AREA_PER_CUBE = 2600; // px² of canvas per twinkling cube — controls density
+const AREA_PER_CUBE = 3467; // px² of canvas per twinkling cube — controls density (2600 / 0.75)
 const GLOW_RADIUS = 170; // px around the pointer that brightens cubes
 const GLOW_PEAK = 0.6; // extra alpha added at the pointer's exact center
 
-// A circular vignette centered on the hero: the inner 60% of the radius
+// A circular vignette centered on the hero: the inner 80% of the radius
 // stays completely empty, and cubes only appear (ramping in) across the
-// outer 40%.
-const EDGE_INNER = 0.6; // empty within this fraction of the radius
+// outer 20%.
+const EDGE_INNER = 0.8; // empty within this fraction of the radius
 const EDGE_OUTER = 1.0; // fully visible from here out
 
 /** 0 within EDGE_INNER of the center, ramping to 1 by EDGE_OUTER — an ellipse matching the canvas's own aspect ratio. */
@@ -88,8 +88,8 @@ function drawCube(
 /**
  * A field of tiny cubes that twinkle in place — like a star field, but each
  * "star" is a little isometric cube. Shaped to a circular vignette (see
- * edgeWeight above): empty across the inner 60% of the radius, cubes only
- * in the outer 40%. Cubes near the pointer glow brighter, on top of their
+ * edgeWeight above): empty across the inner 80% of the radius, cubes only
+ * in the outer 20%. Cubes near the pointer glow brighter, on top of their
  * own ambient twinkle.
  */
 export default function CubeVignette() {
