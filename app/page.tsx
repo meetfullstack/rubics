@@ -2,6 +2,7 @@ import Link from "next/link";
 import CornerButton from "@/components/CornerButton";
 import HeroCube from "@/components/HeroCube";
 import CubeVignette from "@/components/CubeVignette";
+import HeroHeadline from "@/components/HeroHeadline";
 
 const features = [
   {
@@ -26,11 +27,7 @@ export default function Home() {
         <div className="container hero-grid relative z-10">
           <div>
             <p className="section-tag">Rubik&rsquo;s cube · Solver &amp; playground</p>
-            <h1 className="hero-heading">
-              Twist it.
-              <br />
-              <span className="accent-text">Solve it.</span>
-            </h1>
+            <HeroHeadline />
             <p className="hero-sub">
               Stuck on a scrambled cube? Enter its colors and Rubics walks you through the
               solution step by step. Or just play with one right here in your browser.
