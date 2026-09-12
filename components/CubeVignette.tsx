@@ -8,10 +8,10 @@ const AREA_PER_CUBE = 3467; // px² of canvas per twinkling cube — controls de
 const GLOW_RADIUS = 170; // px around the pointer that brightens cubes
 const GLOW_PEAK = 0.6; // extra alpha added at the pointer's exact center
 
-// A circular vignette centered on the hero: the inner 80% of the radius
+// A circular vignette centered on the hero: the inner 90% of the radius
 // stays completely empty, and cubes only appear (ramping in) across the
-// outer 20%.
-const EDGE_INNER = 0.8; // empty within this fraction of the radius
+// outer 10%.
+const EDGE_INNER = 0.9; // empty within this fraction of the radius
 const EDGE_OUTER = 1.0; // fully visible from here out
 
 /** 0 within EDGE_INNER of the center, ramping to 1 by EDGE_OUTER — an ellipse matching the canvas's own aspect ratio. */
@@ -88,8 +88,8 @@ function drawCube(
 /**
  * A field of tiny cubes that twinkle in place — like a star field, but each
  * "star" is a little isometric cube. Shaped to a circular vignette (see
- * edgeWeight above): empty across the inner 80% of the radius, cubes only
- * in the outer 20%. Cubes near the pointer glow brighter, on top of their
+ * edgeWeight above): empty across the inner 90% of the radius, cubes only
+ * in the outer 10%. Cubes near the pointer glow brighter, on top of their
  * own ambient twinkle.
  */
 export default function CubeVignette() {
@@ -131,7 +131,7 @@ export default function CubeVignette() {
           edge,
           size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
           shade: shades[Math.floor(Math.random() * shades.length)],
-          peak: 0.45 + Math.random() * 0.5,
+          peak: (0.45 + Math.random() * 0.5) * 0.75, // 25% dimmer peak brightness
           phase: Math.random() * Math.PI * 2,
           // Full twinkle cycles every ~4-8s — was 1.4-3s, too fast/frantic.
           rate: (Math.PI * 2) / (4000 + Math.random() * 4000),
