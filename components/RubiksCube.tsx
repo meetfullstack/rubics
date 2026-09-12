@@ -506,7 +506,12 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = mount;
       if (!w || !h) return;
-      renderer.setSize(w, h, false);
+      // updateStyle (default true): also sets canvas.style.width/height in CSS
+      // px. Skipping it left the canvas's displayed size at its drawing-buffer
+      // size (CSS px × devicePixelRatio) with no CSS width/height to shrink it
+      // back down — invisible at DPR 1, but on real phones/retina screens the
+      // cube rendered ~2-3x too big and was cropped by the stage's overflow.
+      renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
