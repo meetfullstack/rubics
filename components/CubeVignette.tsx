@@ -2,16 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-const CUBE_SIZE = 18;
-const GAP = 34;
-// Each cube's per-tick fall distance, as a multiple of its own size. Kept
-// >= 1 so successive draws in a column don't overlap into a smeared streak
-// (the fade below is what would otherwise be the only separation) — each
-// cube should read as a distinct shape with visible gaps around it.
-const MIN_SPEED = 1;
-const SPEED_RANGE = 1;
-const MIN_ALPHA = 0.18;
-const ALPHA_RANGE = 0.22;
+const CUBE_SIZE_MIN = 10;
+const CUBE_SIZE_RANGE = 14;
+const AREA_PER_CUBE = 5500; // px² of canvas per twinkling cube — controls density
 
 // Isometric cube palette: [top, left, right] face shades, light→dark, per theme.
 const DARK_SHADES: [string, string, string][] = [
@@ -23,10 +16,25 @@ const LIGHT_SHADES: [string, string, string][] = [
   ["rgba(196,132,252,ALPHA)", "rgba(147,51,234,ALPHA)", "rgba(107,33,168,ALPHA)"],
 ];
 
-type Drop = { y: number; speed: number; shade: [string, string, string]; alpha: number };
+type Cube = {
+  x: number;
+  y: number;
+  size: number;
+  shade: [string, string, string];
+  peak: number; // brightest alpha this cube reaches
+  phase: number; // radians, randomizes where in its cycle it starts
+  rate: number; // radians per ms
+};
 
 /** Draws one small isometric cube (3 diamond faces) centered at (cx, cy). */
-function drawCube(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, alpha: number, shade: [string, string, string]) {
+function drawCube(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  s: number,
+  alpha: number,
+  shade: [string, string, string],
+) {
   const h = s / 2;
   const [top, left, right] = shade;
 
@@ -59,9 +67,10 @@ function drawCube(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: numb
 }
 
 /**
- * A "digital rain" of tiny falling cubes, like the portfolio's MatrixRain but
- * cube-shaped — masked to a vignette so it frames the hero's edges/corners
- * and fades away around the headline and 3D cube in the middle.
+ * A field of tiny cubes that twinkle in place — like a star field, but each
+ * "star" is a little isometric cube. Masked to a vignette (see .cube-vignette
+ * in globals.css) so it frames the hero's edges/corners and fades away
+ * around the headline and 3D cube in the middle.
  */
 export default function CubeVignette() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,27 +83,35 @@ export default function CubeVignette() {
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    let columns: Drop[] = [];
+    let cubes: Cube[] = [];
     let raf: number;
-    let lastTime = 0;
-
     let lastDark = document.documentElement.classList.contains("dark");
-    let settled = false;
 
-    function solidFill(dark: boolean) {
-      ctx!.fillStyle = dark ? "#000000" : "#f5f5f7";
-      ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
+    function makeCubes(dark: boolean) {
+      const shades = dark ? DARK_SHADES : LIGHT_SHADES;
+      const count = Math.max(12, Math.floor((canvas!.width * canvas!.height) / AREA_PER_CUBE));
+      return Array.from({ length: count }, () => ({
+        x: Math.random() * canvas!.width,
+        y: Math.random() * canvas!.height,
+        size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
+        shade: shades[Math.floor(Math.random() * shades.length)],
+        peak: 0.25 + Math.random() * 0.45,
+        phase: Math.random() * Math.PI * 2,
+        // Full twinkle cycles every ~3-7s.
+        rate: (Math.PI * 2) / (3000 + Math.random() * 4000),
+      }));
     }
 
-    function makeColumns(dark: boolean) {
-      const shades = dark ? DARK_SHADES : LIGHT_SHADES;
-      const count = Math.max(1, Math.floor(canvas!.width / GAP));
-      return Array.from({ length: count }, () => ({
-        y: Math.random() * -canvas!.height,
-        speed: MIN_SPEED + Math.random() * SPEED_RANGE,
-        shade: shades[Math.floor(Math.random() * shades.length)],
-        alpha: MIN_ALPHA + Math.random() * ALPHA_RANGE,
-      }));
+    function render(now: number, dark: boolean) {
+      ctx!.fillStyle = dark ? "#000000" : "#f5f5f7";
+      ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
+      for (const c of cubes) {
+        // Rests at near-invisible between twinkles, rather than oscillating
+        // symmetrically dim→bright→dim — reads as an occasional glint.
+        const wave = Math.max(0, Math.sin(now * c.rate + c.phase));
+        const alpha = (wave * wave * c.peak).toFixed(3);
+        if (Number(alpha) > 0.01) drawCube(ctx!, c.x, c.y, c.size, Number(alpha), c.shade);
+      }
     }
 
     function syncSize() {
@@ -102,8 +119,8 @@ export default function CubeVignette() {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
       const dark = document.documentElement.classList.contains("dark");
-      solidFill(dark);
-      columns = makeColumns(dark);
+      cubes = makeCubes(dark);
+      render(0, dark);
     }
 
     syncSize();
@@ -115,35 +132,13 @@ export default function CubeVignette() {
 
     function tick(now: number) {
       raf = requestAnimationFrame(tick);
-      if (now - lastTime < 66) return; // ~15 fps, matches MatrixRain's pace
-      lastTime = now;
-
       if (!canvas || !ctx) return;
       const dark = document.documentElement.classList.contains("dark");
-
-      if (!settled) {
-        settled = true;
+      if (dark !== lastDark) {
         lastDark = dark;
-      } else if (dark !== lastDark) {
-        lastDark = dark;
-        solidFill(dark);
-        columns = makeColumns(dark);
-        return;
+        cubes = makeCubes(dark);
       }
-
-      ctx.fillStyle = dark ? "rgba(0,0,0,0.22)" : "rgba(245,245,247,0.22)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      columns.forEach((drop, i) => {
-        const x = i * GAP + GAP / 2;
-        drawCube(ctx, x, drop.y, CUBE_SIZE, drop.alpha, drop.shade);
-        drop.y += drop.speed * CUBE_SIZE;
-        if (drop.y - CUBE_SIZE > canvas.height && Math.random() > 0.92) {
-          drop.y = -CUBE_SIZE;
-          drop.speed = MIN_SPEED + Math.random() * SPEED_RANGE;
-          drop.alpha = MIN_ALPHA + Math.random() * ALPHA_RANGE;
-        }
-      });
+      render(now, dark);
     }
 
     raf = requestAnimationFrame(tick);
@@ -154,12 +149,5 @@ export default function CubeVignette() {
     };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      role="presentation"
-      className="cube-vignette"
-    />
-  );
+  return <canvas ref={canvasRef} aria-hidden="true" role="presentation" className="cube-vignette" />;
 }

@@ -508,7 +508,7 @@ a[aria-current="page"] .nav-link-text {
   overflow: hidden;
 }
 
-/* Falling-cubes "digital rain" (components/CubeVignette.tsx), masked to a
+/* A field of twinkling cubes (components/CubeVignette.tsx), masked to a
    vignette: visible framing the edges/corners, faded away over the middle
    where the headline and 3D cube sit so it never fights with them. */
 .cube-vignette {
@@ -518,8 +518,8 @@ a[aria-current="page"] .nav-link-text {
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 35%, black 90%);
-  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 35%, black 90%);
+  mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 42%, black 100%);
+  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 42%, black 100%);
 }
 
 .hero-grid {
