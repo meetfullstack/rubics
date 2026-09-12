@@ -508,9 +508,12 @@ a[aria-current="page"] .nav-link-text {
   overflow: hidden;
 }
 
-/* A field of twinkling cubes (components/CubeVignette.tsx), masked to a
-   vignette: visible framing the edges/corners, faded away over the middle
-   where the headline and 3D cube sit so it never fights with them. */
+/* A field of twinkling cubes (components/CubeVignette.tsx). The vignette
+   shape itself — visible near the edges, clear across the middle where the
+   headline and 3D cube sit — is computed per-cube in JS (edgeWeight), not
+   here, so there's exactly one definition of it: a CSS mask on top would
+   shape a second, different vignette that a hover glow could still poke
+   through wherever the two didn't quite line up. */
 .cube-vignette {
   position: absolute;
   inset: 0;
@@ -518,8 +521,6 @@ a[aria-current="page"] .nav-link-text {
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 56%, black 100%);
-  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 56%, black 100%);
 }
 
 .hero-grid {
