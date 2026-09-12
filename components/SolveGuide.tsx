@@ -141,11 +141,30 @@ export default function SolveGuide() {
       return;
     }
     setCenterHint(false);
-    setFacelets((f) => {
-      const copy = [...f];
-      copy[i] = copy[i] === brush ? null : brush;
-      return copy;
-    });
+
+    if (facelets[i] === brush) {
+      // Clicking a sticker that already has the selected color clears it.
+      const copy = [...facelets];
+      copy[i] = null;
+      setFacelets(copy);
+      setError(null);
+      return;
+    }
+
+    // Every color can only cover 9 stickers (1 fixed center + 8 more) — a
+    // real cube can't have a 10th, so stop here instead of letting the
+    // count go higher, and tell the user to switch colors or clear one first.
+    const brushCount = facelets.filter((c) => c === brush).length;
+    if (brushCount >= 9) {
+      setError(
+        `You've already placed all 9 ${COLOR_NAME[brush].toLowerCase()} stickers. Choose a different color, or clear one first.`,
+      );
+      return;
+    }
+
+    const copy = [...facelets];
+    copy[i] = brush;
+    setFacelets(copy);
     setError(null);
   };
 
@@ -241,12 +260,14 @@ export default function SolveGuide() {
               type="button"
               role="radio"
               aria-checked={brush === c}
-              className="swatch"
+              className={`swatch${counts[i] >= 9 ? " swatch--full" : ""}`}
               onClick={() => setBrush(c)}
             >
               <span className="swatch-dot" style={{ background: COLOR_HEX[c] }} aria-hidden="true" />
               {COLOR_NAME[c]}
-              <span className="swatch-count">{counts[i]}/9</span>
+              <span className="swatch-count">
+                {counts[i]}/9{counts[i] >= 9 && <span aria-hidden="true"> ✓</span>}
+              </span>
             </button>
           ))}
         </div>
