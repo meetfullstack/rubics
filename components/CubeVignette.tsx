@@ -4,9 +4,26 @@ import { useEffect, useRef } from "react";
 
 const CUBE_SIZE_MIN = 10;
 const CUBE_SIZE_RANGE = 14;
-const AREA_PER_CUBE = 5500; // px² of canvas per twinkling cube — controls density
+const AREA_PER_CUBE = 2600; // px² of canvas per twinkling cube — controls density
 const GLOW_RADIUS = 170; // px around the pointer that brightens cubes
 const GLOW_PEAK = 0.6; // extra alpha added at the pointer's exact center
+
+// Mirrors the CSS vignette mask in globals.css (.cube-vignette) so a cube's
+// own alpha is already suppressed approaching the true center — otherwise a
+// hover glow boost could push a center cube's alpha up enough to show
+// through the mask's soft inner edge, flashing where nothing should render.
+const EDGE_INNER = 0.42;
+const EDGE_OUTER = 0.88;
+
+/** 0 at the exact center, ramping to 1 past EDGE_OUTER — an ellipse matching the canvas's own aspect ratio. */
+function edgeWeight(x: number, y: number, w: number, h: number) {
+  const dx = (x - w / 2) / (w / 2);
+  const dy = (y - h / 2) / (h / 2);
+  const r = Math.sqrt(dx * dx + dy * dy);
+  if (r <= EDGE_INNER) return 0;
+  if (r >= EDGE_OUTER) return 1;
+  return (r - EDGE_INNER) / (EDGE_OUTER - EDGE_INNER);
+}
 
 // Isometric cube palette: [top, left, right] face shades, light→dark, per theme.
 const DARK_SHADES: [string, string, string][] = [
@@ -26,6 +43,7 @@ type Cube = {
   peak: number; // brightest alpha this cube reaches
   phase: number; // radians, randomizes where in its cycle it starts
   rate: number; // radians per ms
+  edge: number; // this cube's fixed edgeWeight (position never changes)
 };
 
 /** Draws one small isometric cube (3 diamond faces) centered at (cx, cy). */
@@ -94,23 +112,40 @@ export default function CubeVignette() {
 
     function makeCubes(dark: boolean) {
       const shades = dark ? DARK_SHADES : LIGHT_SHADES;
-      const count = Math.max(12, Math.floor((canvas!.width * canvas!.height) / AREA_PER_CUBE));
-      return Array.from({ length: count }, () => ({
-        x: Math.random() * canvas!.width,
-        y: Math.random() * canvas!.height,
-        size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
-        shade: shades[Math.floor(Math.random() * shades.length)],
-        peak: 0.25 + Math.random() * 0.45,
-        phase: Math.random() * Math.PI * 2,
-        // Full twinkle cycles every ~3-7s.
-        rate: (Math.PI * 2) / (3000 + Math.random() * 4000),
-      }));
+      const w = canvas!.width;
+      const h = canvas!.height;
+      const count = Math.max(24, Math.floor((w * h) / AREA_PER_CUBE));
+      return Array.from({ length: count }, () => {
+        // Re-roll a spawn that lands too deep in the always-clear center —
+        // otherwise part of the cube budget just never renders anything.
+        let x = 0;
+        let y = 0;
+        let edge = 0;
+        for (let attempt = 0; attempt < 6 && edge <= 0; attempt++) {
+          x = Math.random() * w;
+          y = Math.random() * h;
+          edge = edgeWeight(x, y, w, h);
+        }
+        return {
+          x,
+          y,
+          edge,
+          size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
+          shade: shades[Math.floor(Math.random() * shades.length)],
+          peak: 0.25 + Math.random() * 0.45,
+          phase: Math.random() * Math.PI * 2,
+          // Full twinkle cycles every ~3-7s.
+          rate: (Math.PI * 2) / (3000 + Math.random() * 4000),
+        };
+      });
     }
 
     function render(now: number, dark: boolean) {
       ctx!.fillStyle = dark ? "#000000" : "#f5f5f7";
       ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
       for (const c of cubes) {
+        if (c.edge <= 0) continue;
+
         // Rests at near-invisible between twinkles, rather than oscillating
         // symmetrically dim→bright→dim — reads as an occasional glint.
         const wave = Math.max(0, Math.sin(now * c.rate + c.phase));
@@ -119,6 +154,11 @@ export default function CubeVignette() {
         const dist = Math.hypot(c.x - pointer.x, c.y - pointer.y);
         const proximity = Math.max(0, 1 - dist / GLOW_RADIUS);
         if (proximity > 0) alpha = Math.min(1, alpha + proximity * proximity * GLOW_PEAK);
+
+        // Suppressed toward the center regardless of any glow boost — this
+        // is what stops a hover glow from flashing through the CSS mask's
+        // soft inner edge (see EDGE_INNER/EDGE_OUTER above).
+        alpha *= c.edge;
 
         if (alpha <= 0.01) continue;
         if (proximity > 0.12) {
