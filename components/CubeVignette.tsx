@@ -132,10 +132,10 @@ export default function CubeVignette() {
           edge,
           size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
           shade: shades[Math.floor(Math.random() * shades.length)],
-          peak: 0.25 + Math.random() * 0.45,
+          peak: 0.45 + Math.random() * 0.5,
           phase: Math.random() * Math.PI * 2,
-          // Full twinkle cycles every ~3-7s.
-          rate: (Math.PI * 2) / (3000 + Math.random() * 4000),
+          // Full twinkle cycles every ~1.4-3s — brisker, more like an actual blink.
+          rate: (Math.PI * 2) / (1400 + Math.random() * 1600),
         };
       });
     }
@@ -146,10 +146,12 @@ export default function CubeVignette() {
       for (const c of cubes) {
         if (c.edge <= 0) continue;
 
-        // Rests at near-invisible between twinkles, rather than oscillating
-        // symmetrically dim→bright→dim — reads as an occasional glint.
+        // Rests at near-invisible between twinkles and snaps up quickly
+        // (wave**4, not **2) rather than breathing in and out smoothly —
+        // reads as a sharp star-like blink instead of a slow pulse.
         const wave = Math.max(0, Math.sin(now * c.rate + c.phase));
-        let alpha = wave * wave * c.peak;
+        const w2 = wave * wave;
+        let alpha = w2 * w2 * c.peak;
 
         const dist = Math.hypot(c.x - pointer.x, c.y - pointer.y);
         const proximity = Math.max(0, 1 - dist / GLOW_RADIUS);
