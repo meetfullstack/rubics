@@ -143,13 +143,15 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
     const pmrem = new THREE.PMREMGenerator(renderer);
     const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envMap;
-    scene.environmentIntensity = 0.9;
+    scene.environmentIntensity = 0.6;
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7aa8, 0.9));
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    // key sits almost right above the cube, near-perpendicular to the top
+    // face — kept modest so that face doesn't blow out to near-white.
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7aa8, 0.7));
+    const key = new THREE.DirectionalLight(0xffffff, 1.3);
     key.position.set(4, 9, 6);
     scene.add(key);
-    const rim = new THREE.PointLight(0xa855f7, 30, 20);
+    const rim = new THREE.PointLight(0xa855f7, 22, 20);
     rim.position.set(-4, -2, -4);
     scene.add(rim);
 
@@ -166,9 +168,13 @@ export default function RubiksCube({ mode = "full", onReady, initialMoves }: Pro
       (color) =>
         new THREE.MeshPhysicalMaterial({
           color,
-          roughness: 0.22,
-          clearcoat: 0.6,
-          clearcoatRoughness: 0.15,
+          roughness: 0.35,
+          // A tight, shiny clearcoat threw a hard specular streak across
+          // whichever row faced the key light head-on, washing it out to
+          // near-gray. Softer and rougher spreads that highlight out
+          // instead of concentrating it on one row.
+          clearcoat: 0.35,
+          clearcoatRoughness: 0.45,
         }),
     );
 
