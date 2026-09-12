@@ -1,6 +1,7 @@
 import Link from "next/link";
 import CornerButton from "@/components/CornerButton";
 import HeroCube from "@/components/HeroCube";
+import CubeVignette from "@/components/CubeVignette";
 
 const features = [
   {
@@ -21,7 +22,8 @@ export default function Home() {
   return (
     <>
       <section className="hero">
-        <div className="container hero-grid">
+        <CubeVignette />
+        <div className="container hero-grid relative z-10">
           <div>
             <p className="section-tag">Rubik&rsquo;s cube · Solver &amp; playground</p>
             <h1 className="hero-heading">
