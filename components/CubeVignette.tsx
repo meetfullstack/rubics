@@ -6,7 +6,7 @@ const CUBE_SIZE_MIN = 10;
 const CUBE_SIZE_RANGE = 14;
 const AREA_PER_CUBE = 3467; // px² of canvas per twinkling cube — controls density (2600 / 0.75)
 const GLOW_RADIUS = 170; // px around the pointer that brightens cubes
-const GLOW_PEAK = 0.6; // extra alpha added at the pointer's exact center
+const GLOW_PEAK = 0.48; // extra alpha added at the pointer's exact center (0.6 * 0.8)
 
 // A circular vignette centered on the hero: the inner 90% of the radius
 // stays completely empty, and cubes only appear (ramping in) across the
@@ -131,7 +131,7 @@ export default function CubeVignette() {
           edge,
           size: CUBE_SIZE_MIN + Math.random() * CUBE_SIZE_RANGE,
           shade: shades[Math.floor(Math.random() * shades.length)],
-          peak: (0.45 + Math.random() * 0.5) * 0.75 * 0.8, // 25% dimmer, then another 20% dimmer
+          peak: (0.45 + Math.random() * 0.5) * 0.75 * 0.8 * 0.8, // 25%, then 20%, then another 20% dimmer
           phase: Math.random() * Math.PI * 2,
           // Full twinkle cycles every ~4-8s — was 1.4-3s, too fast/frantic.
           rate: (Math.PI * 2) / (4000 + Math.random() * 4000),
