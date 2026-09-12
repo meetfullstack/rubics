@@ -8,23 +8,20 @@ const AREA_PER_CUBE = 2600; // px² of canvas per twinkling cube — controls de
 const GLOW_RADIUS = 170; // px around the pointer that brightens cubes
 const GLOW_PEAK = 0.6; // extra alpha added at the pointer's exact center
 
-// The hero is two columns (headline+buttons on the left, the 3D cube on the
-// right) — a single radial vignette centered on the whole section left both
-// columns sitting inside its "visible" ring, so hovering near the text or
-// the cube could still light up a cube right behind them. A frame-shaped
-// vignette (distance to the NEAREST edge, not distance from one center
-// point) instead stays clear across the whole middle strip regardless of
-// which column something's in, and only lights up near the true edges.
-const EDGE_INNER = 0.22; // fully visible within this fraction of the way in from an edge
-const EDGE_OUTER = 0.62; // fully suppressed beyond this fraction of the way in
+// A circular vignette centered on the hero: the inner 60% of the radius
+// stays completely empty, and cubes only appear (ramping in) across the
+// outer 40%.
+const EDGE_INNER = 0.6; // empty within this fraction of the radius
+const EDGE_OUTER = 1.0; // fully visible from here out
 
-/** 0 across the broad middle (spanning both columns), 1 near the outer edges. */
+/** 0 within EDGE_INNER of the center, ramping to 1 by EDGE_OUTER — an ellipse matching the canvas's own aspect ratio. */
 function edgeWeight(x: number, y: number, w: number, h: number) {
-  const nearest = Math.min(x, w - x, y, h - y);
-  const t = nearest / (Math.min(w, h) / 2); // 0 at an edge, 1 at the center
-  if (t <= EDGE_INNER) return 1;
-  if (t >= EDGE_OUTER) return 0;
-  return 1 - (t - EDGE_INNER) / (EDGE_OUTER - EDGE_INNER);
+  const dx = (x - w / 2) / (w / 2);
+  const dy = (y - h / 2) / (h / 2);
+  const r = Math.sqrt(dx * dx + dy * dy);
+  if (r <= EDGE_INNER) return 0;
+  if (r >= EDGE_OUTER) return 1;
+  return (r - EDGE_INNER) / (EDGE_OUTER - EDGE_INNER);
 }
 
 // Isometric cube palette: [top, left, right] face shades, light→dark, per theme.
@@ -90,10 +87,10 @@ function drawCube(
 
 /**
  * A field of tiny cubes that twinkle in place — like a star field, but each
- * "star" is a little isometric cube. Shaped to a frame-style vignette (see
- * edgeWeight above) so it lights up near the hero's outer edges and stays
- * clear across the middle, where the headline and 3D cube sit. Cubes near
- * the pointer glow brighter, on top of their own ambient twinkle.
+ * "star" is a little isometric cube. Shaped to a circular vignette (see
+ * edgeWeight above): empty across the inner 60% of the radius, cubes only
+ * in the outer 40%. Cubes near the pointer glow brighter, on top of their
+ * own ambient twinkle.
  */
 export default function CubeVignette() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -136,8 +133,8 @@ export default function CubeVignette() {
           shade: shades[Math.floor(Math.random() * shades.length)],
           peak: 0.45 + Math.random() * 0.5,
           phase: Math.random() * Math.PI * 2,
-          // Full twinkle cycles every ~1.4-3s — brisker, more like an actual blink.
-          rate: (Math.PI * 2) / (1400 + Math.random() * 1600),
+          // Full twinkle cycles every ~4-8s — was 1.4-3s, too fast/frantic.
+          rate: (Math.PI * 2) / (4000 + Math.random() * 4000),
         };
       });
     }
