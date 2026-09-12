@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import RubiksCube, { type CubeApi } from "@/components/RubiksCube";
+import dynamic from "next/dynamic";
+import type { CubeApi } from "@/components/RubiksCube";
 import CornerButton from "@/components/CornerButton";
 import {
   COLORS,
@@ -23,6 +24,18 @@ import {
   type Move,
 } from "@/lib/moves";
 import type { SolverResponse } from "@/lib/solver.worker";
+
+// Splits the three.js engine into its own chunk so this page's color-entry
+// UI renders immediately — the cube pops in once that chunk arrives (only
+// needed once the user reaches the guide phase).
+const RubiksCube = dynamic(() => import("@/components/RubiksCube"), {
+  ssr: false,
+  loading: () => (
+    <div className="card cube-stage cube-skeleton-stage" role="status">
+      <span className="sr-only">Loading 3D cube…</span>
+    </div>
+  ),
+});
 
 type Phase = "input" | "solving" | "guide";
 
@@ -57,8 +70,10 @@ export default function SolveGuide() {
   const [step, setStep] = useState(0);
   const workerRef = useRef<Worker | null>(null);
   const cubeApi = useRef<CubeApi | null>(null);
+  const [cubeReady, setCubeReady] = useState(false);
   const handleCubeReady = useCallback((api: CubeApi | null) => {
     cubeApi.current = api;
+    setCubeReady(api !== null);
   }, []);
 
   // Start the solver right away so its tables are built while the user paints.
@@ -95,14 +110,17 @@ export default function SolveGuide() {
   const setupMoves = useMemo(() => invertMoves(solution), [solution]);
 
   const next = useCallback(() => {
-    if (step >= solution.length) return;
-    cubeApi.current?.enqueue(solution[step]);
+    // The cube's chunk may still be loading (see the dynamic() import
+    // above) — without this guard, clicking here first would advance the
+    // step counter with no matching move applied once the cube did mount.
+    if (step >= solution.length || !cubeApi.current) return;
+    cubeApi.current.enqueue(solution[step]);
     setStep(step + 1);
   }, [step, solution]);
 
   const prev = useCallback(() => {
-    if (step <= 0) return;
-    cubeApi.current?.enqueue(invertMove(solution[step - 1]));
+    if (step <= 0 || !cubeApi.current) return;
+    cubeApi.current.enqueue(invertMove(solution[step - 1]));
     setStep(step - 1);
   }, [step, solution]);
 
@@ -165,10 +183,10 @@ export default function SolveGuide() {
           </div>
 
           <div className="panel-actions">
-            <CornerButton variant="secondary" onClick={prev} disabled={step === 0}>
+            <CornerButton variant="secondary" onClick={prev} disabled={step === 0 || !cubeReady}>
               ← Back
             </CornerButton>
-            <CornerButton variant="primary" onClick={next} disabled={done}>
+            <CornerButton variant="primary" onClick={next} disabled={done || !cubeReady}>
               Next →
             </CornerButton>
           </div>
