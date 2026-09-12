@@ -518,8 +518,8 @@ a[aria-current="page"] .nav-link-text {
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 42%, black 100%);
-  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 42%, black 100%);
+  mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 56%, black 100%);
+  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 56%, black 100%);
 }
 
 .hero-grid {
